@@ -241,50 +241,55 @@ class TATransEModel(nn.Module):
             # print(d)
             pred_pos_t = pred_pos_t.unsqueeze(1).expand(n, m, d).cuda()
             my_list_tensor = ent_embeddings.unsqueeze(0).expand(n, m, d).cuda()
-            z = (1/(torch.sum(torch.abs(pred_pos_t - my_list_tensor), dim = 2)+0.0001)*100).cuda()
+            z1 = (1/(torch.sum(torch.abs(pred_pos_t - my_list_tensor), dim = 2)+0.0001)*100).cuda()
             # print(z[0][:40])
             # print(z.shape)
-            pred = F.softmax(z, dim=0)
-            # print(pred.shape)
-            # print(pred[0][:40])
-            return pred,pos_t
-
-            # exit()
+            pred1 = F.softmax(z1, dim=0)
 
 
 
-            # print(ent_embeddings[0])
-            # exit()
-            # pos_h = pos_h.detach().numpy()
-            # print(self.ent_embeddings(my_list_tensor).shape)
-            # print(pos_t.shape)
+
+
+            n  = pred_pos_h.size(0)
+            m = ent_embeddings.size(0)
+            d  = pred_pos_h.size(1)
+            pred_pos_h = pred_pos_h.unsqueeze(1).expand(n, m, d).cuda()
+            # my_list_tensor = ent_embeddings.unsqueeze(0).expand(n, m, d).cuda()
+            z2 = (1/(torch.sum(torch.abs(pred_pos_h - my_list_tensor), dim = 2)+0.0001)*100).cuda()
+            pred2 = F.softmax(z2, dim=0)
+
             
-            # for i in pred_pos_t:
-            #     list1.append(1/(torch.sum(i-self.ent_embeddings(my_list_tensor), dim = 1)+0.0001))
-            # print(type(list1))
-            # # exit()
-            # list1 = torch.tensor(list1).cuda()
-            # exit()
-            # for i in range(len(list1)):
-            #     list1[i] = torch.sigmoid(torch.tensor(list1[i]))
-
-            # pred = torch.sigmoid(torch.tensor(list1))
-            # print(len(list1[0]))
-            # exit()
-            # return  0, 0 ,torch.tensor(list1).cuda() , pos_t
             
-            # if self.L1_flag:
-            #     print("data")
-            #     # print(type(self.ent_embeddings))
-            dist1 = pairwise_distances(pred_pos_t , self.ent_embeddings(my_list_tensor), metric ='manhattan')
+            # n  = pred_neg_t.size(0)
+            # m = ent_embeddings.size(0)
+            # d  = pred_neg_t.size(1)
+            # pred_neg_t = pred_neg_t.unsqueeze(1).expand(n, m, d).cuda()
+            # # my_list_tensor = ent_embeddings.unsqueeze(0).expand(n, m, d).cuda()
+            # z3 = (1/(torch.sum(torch.abs(pred_neg_t - my_list_tensor), dim = 2)+0.0001)*100).cuda()
+            # pred3 = F.softmax(z3, dim=0)
 
-            #     dist2 = pairwise_distances(pos_t , self.ent_embeddings(my_list_tensor), metric ='manhattan')
-            print(dist1.shape)
-            exit()
 
-            # else:
-            #   pos = torch.sum((pos_h_e + pos_rseq_e - pos_t_e) ** 2, 1)
-            #   neg = torch.sum((neg_h_e + neg_rseq_e - neg_t_e) ** 2, 1)
+
+            # n  = pred_neg_h.size(0)
+            # m = ent_embeddings.size(0)
+            # d  = pred_neg_h.size(1)
+            # pred_neg_h = pred_neg_h.unsqueeze(1).expand(n, m, d).cuda()
+            # # my_list_tensor = ent_embeddings.unsqueeze(0).expand(n, m, d).cuda()
+            # z4 = (1/(torch.sum(torch.abs(pred_neg_h - my_list_tensor), dim = 2)+0.0001)*100).cuda()
+            # pred4 = F.softmax(z3, dim=0)
+
+
+
+
+            pred = torch.cat((pred1, pred2), 0)
+            target = torch.cat((pos_t, pos_h), 0)
+     
+
+
+
+            return pred,target
+
+
             
 
 
