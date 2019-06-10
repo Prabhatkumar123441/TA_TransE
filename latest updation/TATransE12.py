@@ -55,6 +55,11 @@ self.relation_total: The number of different relations.
 self.batch_size: How many instances is contained in one batch?
 """
 
+epoch_list = []
+epoch_list_per_5 = []
+hit_10_per_epoch = []
+mean_rank_per_epoch = []
+mean_re_rank_per_epoch = []
 
 class Config(object):
     def __init__(self):
@@ -107,13 +112,14 @@ if __name__ == "__main__":
     argparser.add_argument('-op', '--optimizer', type=int, default=1)
     argparser.add_argument('-lo', '--loss_type', type=int, default=0)
     argparser.add_argument('-p', '--port', type=int, default=5000)
-    argparser.add_argument('-np', '--num_processes', type=int, default=4)
+    argparser.add_argument('-np', '--num_processes', type=int, default=14)
     argparser.add_argument('-test', '--test', type=int, default=0)
 
     args = argparser.parse_args()
 
     if args.seed != 0:
         torch.manual_seed(args.seed)
+
 
     trainTotal, trainList, trainDict, trainTimes = load_quadruples('./data/' + args.dataset + '_TA', 'train2id.txt', 'train_tem.npy')
     validTotal, validList, validDict, validTimes = load_quadruples('./data/' + args.dataset + '_TA', 'valid2id.txt', 'valid_tem.npy')
@@ -160,6 +166,9 @@ if __name__ == "__main__":
     config.batch_size = args.batch_size
 
     loss_function = config.loss_function()
+
+
+    # for_loss contain the list of all losses per epoch
     for_loss = []
     filename = '_'.join(
             ['dropout', str(args.dropout),
@@ -198,9 +207,19 @@ if __name__ == "__main__":
         
 
         for epoch in range(config.train_times):
+            
             model.train()
             total_loss = floatTensor([0.0])
+            print("epoch------------------------",epoch)
+
             random.shuffle(trainBatchList)
+
+
+            epoch_list.append(epoch)
+            # print(len(trainBatchList))
+            # exit()
+
+
             for batchList in trainBatchList:
                 if config.filter == True:
                     pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_filter_all(batchList,
@@ -222,42 +241,27 @@ if __name__ == "__main__":
                 neg_t_batch = autograd.Variable(longTensor(neg_t_batch))
                 neg_r_batch = autograd.Variable(longTensor(neg_r_batch))
                 neg_time_batch = autograd.Variable(longTensor(neg_time_batch))
-
                 model.zero_grad()
-                # print("config.entity_total",config.entity_total)
                 pos, neg = model(args.loss_type,config.entity_total,pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch)
-                # print(pos.shape)    # torch.Size([512])
-                # print("hello1")
-                # print(pred)
-
-                # exit()
+                
                 if args.loss_type == 0:
                     losses = loss_function(pos, neg, margin)
                 else:
-                    # labels = torch.squeeze(torch.cat([torch.ones((pos_h_batch.size()[0], 1)), torch.zeros((neg_h_batch.size()[0], 1))]))
-                    # print(labels.size())
-                    # print(torch.cat([pos, neg]).size())
                     losses = F.cross_entropy(pos, neg)
-                    # print(losses)
-                    # exit()
                 ent_embeddings = model.ent_embeddings(torch.cat([pos_h_batch, pos_t_batch, neg_h_batch, neg_t_batch]))
-                # print(pos_r_batch[:2]) #torch.Size([2048, 100])
-                # exit()
-                # p = torch.cat([pos_r_batch, neg_r_batch])
-                # q = torch.cat([pos_time_batch, neg_time_batch])
-                # print(p.shape)
-                # print(q.shape)
-                # exit()
+                
                 rseq_embeddings = model.get_rseq(torch.cat([pos_r_batch, neg_r_batch]), torch.cat([pos_time_batch, neg_time_batch]))
                 losses = losses + loss.normLoss(ent_embeddings) + loss.normLoss(rseq_embeddings)
                 losses.backward()
                 optimizer.step()
                 total_loss += losses.data
 
+                average_loss = int(total_loss[0])/len(trainBatchList)
 
-            for_loss.append(int(total_loss[0]))
+            for_loss.append(average_loss)
 
-            if (epoch+1) % 5 == 0:
+
+            if (epoch) % 5 == 0:
                 now_time = time.time()
                 print(now_time - start_time)
                 print("Train total loss: %d %f" % (epoch, total_loss[0]))
@@ -294,11 +298,13 @@ if __name__ == "__main__":
                     meanrankValid = meanrankValidSum / batchNum
                     meanrerankValid = meanrerankValidSum / batchNum
                     best_meanrank = meanrankValid
+                    print("\n-----------------------------")
                     print("hit10Valid",hit10Valid)
                     print("hit3Valid",hit3Valid)
                     print("hit1Valid",hit1Valid)
                     print("meanrankValid",meanrankValid)
                     print("meanrerankValid",meanrerankValid)
+                    print("-----------------------------\n")
                     torch.save(model, os.path.join('./model/' + args.dataset, filename))
                     best_epoch = 0
                     meanrank_not_decrease_time = 0
@@ -332,11 +338,28 @@ if __name__ == "__main__":
                     meanrankValid = meanrankValidSum / batchNum
                     meanrerankValid = meanrerankValidSum / batchNum
                     now_meanrank = meanrankValid
+                    print("\n-----------------------------")
                     print("hit10Valid",hit10Valid)
                     print("hit3Valid",hit3Valid)
                     print("hit1Valid",hit1Valid)
                     print("meanrankValid",meanrankValid)
                     print("meanrerankValid",meanrerankValid)
+                    print("-----------------------------\n")
+
+
+                    writeList = [filename,
+        'ValidationSet', '%.6f' % hit1Valid, '%.6f' % hit3Valid, '%.6f' % hit10Valid, '%.6f' % meanrankValid, '%.6f' % meanrerankValid,'%.6f'%average_loss ,'%d'%epoch]
+                    os.makedirs('./logfiles/', exist_ok=True)
+                    with open(os.path.join('./logfiles/', args.dataset + filename +'.txt'), 'a') as fw:
+                        fw.write('\t'.join(writeList) + '\n')
+
+
+
+                    epoch_list_per_5.append(epoch)
+                    hit_10_per_epoch.append(hit10Valid)
+                    mean_rank_per_epoch.append(meanrankValid)
+                    mean_re_rank_per_epoch.append(meanrerankValid)
+
                     if now_meanrank < best_meanrank:
                         meanrank_not_decrease_time = 0
                         best_meanrank = now_meanrank
@@ -354,9 +377,9 @@ if __name__ == "__main__":
 
             if (epoch + 1) % 5 == 0 or epoch == 0:
                 torch.save(model, os.path.join('./model/' + args.dataset, filename))
-                print("hit10Valid",hit10Valid)
-                print("hit3Valid",hit3Valid)
-                print("hit1Valid",hit1Valid)
+                # print("hit10Valid",hit10Valid)
+                # print("hit3Valid",hit3Valid)
+                # print("hit1Valid",hit1Valid)
 
     model.eval()
     testTotal, testList, testDict, testTimes = load_quadruples('./data/' + args.dataset + '_TA', 'test2id.txt', 'test_tem.npy')
@@ -387,6 +410,16 @@ if __name__ == "__main__":
     hit10Test = hit10TestSum / batchNum
     meanrankTest = meanrankTestSum / batchNum
     meanrerankTest = meanrerankTestSum / batchNum
+    print("final_results----------------------------->")
+    print("\n-----------------------------")
+    print("hit1Test",hit1Test)
+    print("hit3Test",hit3Test)
+    print("hit10Test",hit10Test)
+    print("meanrankTest",meanrankTest)
+    print("meanrerankTest",meanrerankTest)
+    print("-----------------------------\n")
+
+
 
 
     writeList = [filename,
@@ -394,9 +427,41 @@ if __name__ == "__main__":
 
     # Write the result into file
     os.makedirs('./result/', exist_ok=True)
-    with open(os.path.join('./result/', args.dataset + '.txt'), 'a') as fw:
-        fw.write('\t'.join(writeList) + '\n')
-    print("now its to time to see the plot for_loss")
+    with open(os.path.join('./result/', args.dataset + '.txt'), 'a') as fw1:
+        fw1.write('\t'.join(writeList) + '\n')
+    # print("now its to time to see the plot for_loss")
+    # plt.plot(for_loss)
+    # print(for_loss)
+
+
+
+
+
+    # for Plot the graph 
+    plt.plot(epoch_list, for_loss, color='green', linestyle='dashed', linewidth = 3, 
+         marker='o', markerfacecolor='red', markersize=12)
+
+    # setting x and y axis range 
+    print(args.dataset+'.png')
+    now_time = time.time()
+    print(now_time)
+    # exit()
+    t = args.dataset+str(now_time)+'.png'
     plt.plot(for_loss)
+
+
+    # naming the x axis 
+    plt.xlabel('epochs') 
+    # naming the y axis 
+    plt.ylabel('loss')
+
+    plt.title('epoch vs loss') 
+
+    plt.savefig(filename+t)
     print(for_loss)
+
+
+
+
+
 
