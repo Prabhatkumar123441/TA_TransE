@@ -9,7 +9,7 @@
     - 1st figure in stat.txt - number of entities
     - 2nd figure in stat.txt - number of relations
     
-    used `preprocess_TA_step1.py` and `preprocess_TA_step2.py` to make data for TATransE.
+    used `preprocess_TA_step1.py` and `preprocess_TA_step2.py` to make data for TA_TransE.
     ```
     python preprocess_TA_step1.py ICEWS14
     python preprocess_TA_step2.py ICEWS14
@@ -23,16 +23,16 @@
 
 - You can run the code with 
 	```
-	python TATransE.py ICEWS14
+	python TA_TransE.py ICEWS14
 	
 	```
 	eg:
 	```
 	cd ./baselines
-	CUDA_VISIBLE_DEVICES=0 python TATransE.py -f 1 -d ICEWS14 -L 1 -bs 1024 -n 1000
+	CUDA_VISIBLE_DEVICES=0 python TA_TransE.py -f 1 -d ICEWS14 -L 1 -bs 1024 -n 1000
 
 	```
-Note: when you run the code like python "TATransE.py ICEWS14",
+Note: when you run the code like python "TA_TransE.py ICEWS14",
 you need to give dataset in argument with out _TA  
 
 
